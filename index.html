@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>NVIDIA NIM | Universal AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://tailwindcss.com"></script>
+    <!-- Marked.js for Markdown -->
+    <script src="https://jsdelivr.net"></script>
+    <!-- Highlight.js for Code -->
+    <link rel="stylesheet" href="https://cloudflare.com">
+    <script src="https://cloudflare.com"></script>
+    
+    <style>
+        @import url('https://googleapis.com');
+
+        :root {
+            --nvidia-green: #76b900;
+            --glass-bg: rgba(15, 15, 15, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0b0b0b;
+            color: #e5e7eb;
+            overscroll-behavior-y: contain;
+        }
+
+        .nvidia-glow {
+            box-shadow: 0 0 15px rgba(118, 185, 0, 0.3);
+        }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Animated GPU Background */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.4;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--nvidia-green); }
+
+        /* Typing Animation */
+        .typing-cursor::after {
+            content: "█";
+            animation: blink 1s infinite;
+            color: var(--nvidia-green);
+            margin-left: 2px;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Mobile Adjustments */
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        
+        pre code {
+            font-family: 'Fira Code', monospace !important;
+            font-size: 0.9rem !important;
+            border-radius: 8px !important;
+        }
+
+        #loading {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pulse-nvidia {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .7; transform: scale(1.05); } }
+        
+        .sidebar-transition { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Message bubble style */
+        .msg-user { background: rgba(118, 185, 0, 0.1); border: 1px solid rgba(118, 185, 0, 0.2); }
+        .msg-ai { background: rgba(255, 255, 255, 0.03); }
+    </style>
+</head>
+<body class="min-h-screen flex overflow-hidden">
+
+    <!-- Startup Loader -->
+    <div id="loading">
+        <div class="w-16 h-16 border-4 border-t-nvidia-green border-gray-800 rounded-full animate-spin mb-4"></div>
+        <div class="text-nvidia-green font-bold tracking-widest pulse-nvidia">NVIDIA NIM INITIALIZING...</div>
+    </div>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed lg:relative w-[280px] h-full glass border-r border-white/10 z-50 flex flex-col sidebar-transition -translate-x-full lg:translate-x-0">
+        <div class="p-4 flex items-center justify-between border-b border-white/10">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-[#76b900] rounded flex items-center justify-center font-bold text-black">N</div>
+                <span class="font-bold text-lg tracking-tight">NVIDIA <span class="text-[#76b900]">NIM</span></span>
+            </div>
+            <button onclick="createNewChat()" class="p-2 hover:bg-white/10 rounded-lg transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </button>
+        </div>
+
+        <div class="p-4">
+            <input type="text" id="chat-search" placeholder="Search conversations..." class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#76b900]">
+        </div>
+
+        <nav id="chat-history" class="flex-1 overflow-y-auto px-2 space-y-1">
+            <!-- Chats populated here -->
+        </nav>
+
+        <div class="p-4 border-t border-white/10 space-y-2">
+            <button onclick="toggleSettings()" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition text-sm">
+                <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Settings
+            </button>
+            <div id="gpu-status" class="flex items-center gap-3 px-3 py-2 text-[10px] uppercase tracking-widest text-white/40">
+                <span class="w-2 h-2 rounded-full bg-[#76b900] animate-pulse"></span>
+                System Ready
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col relative h-full min-w-0">
+        <!-- Top Header -->
+        <header class="h-14 glass border-b border-white/10 flex items-center justify-between px-4 z-30">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="lg:hidden p-2 hover:bg-white/10 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+                </button>
+                <div class="text-sm font-medium">
+                    <span class="text-white/50">Model:</span>
+                    <span id="current-model-display" class="text-nvidia-green ml-1">llama-3.1-70b</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="exportChat('markdown')" class="hidden md:flex p-2 hover:bg-white/10 rounded-lg text-xs gap-1 items-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Export
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat Messages -->
+        <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 pb-32">
+            <!-- Welcome View -->
+            <div id="welcome-view" class="h-full flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-6">
+                <div class="w-20 h-20 bg-gradient-to-br from-[#76b900] to-green-900 rounded-2xl flex items-center justify-center shadow-2xl shadow-[#76b900]/20">
+                    <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <h1 class="text-4xl font-bold tracking-tight">Accelerated Intelligence.</h1>
+                <p class="text-white/50 leading-relaxed">Powered by NVIDIA NIM and Llama-3.1 architecture. Secure, local-first, and ultra-fast streaming.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
+                    <button onclick="setInput('Explain quantum computing in simple terms')" class="p-3 bg-white/5 border border-white/10 rounded-xl hover:border-[#76b900]/50 text-xs transition">Explain Quantum</button>
+                    <button onclick="setInput('Write a python script for a data dashboard')" class="p-3 bg-white/5 border border-white/10 rounded-xl hover:border-[#76b900]/50 text-xs transition">Python Dashboard</button>
+                    <button onclick="setInput('Help me brainstorm a brand name for AI startup')" class="p-3 bg-white/5 border border-white/10 rounded-xl hover:border-[#76b900]/50 text-xs transition">Brand Brainstorm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="fixed bottom-0 left-0 right-0 lg:left-[280px] p-4 md:p-6 bg-gradient-to-t from-[#0b0b0b] via-[#0b0b0b] to-transparent z-40">
+            <div class="max-w-4xl mx-auto relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-[#76b900]/20 to-green-600/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition duration-1000"></div>
+                <div class="relative glass rounded-2xl flex flex-col shadow-2xl">
+                    <div id="image-preview" class="hidden px-4 pt-4 flex gap-2"></div>
+                    <div class="flex items-end gap-2 p-2">
+                        <button class="p-3 hover:bg-white/10 rounded-xl transition text-white/50" onclick="triggerFileUpload()">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                        </button>
+                        <textarea id="user-input" rows="1" placeholder="Ask NVIDIA NIM anything..." class="flex-1 bg-transparent border-none focus:ring-0 p-3 max-h-48 resize-none text-white placeholder-white/30 scroll-smooth" style="height: 48px;"></textarea>
+                        <div class="flex gap-1 pb-1 pr-1">
+                            <button id="voice-btn" class="p-3 hover:bg-white/10 rounded-xl transition text-white/50" title="Voice Input">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                            </button>
+                            <button id="send-btn" class="p-3 bg-[#76b900] hover:bg-[#86d200] text-black rounded-xl transition-all disabled:opacity-50 disabled:grayscale" disabled>
+                                <svg id="send-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                <svg id="stop-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 6h12v12H6z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 flex justify-between px-2">
+                    <div id="token-counter" class="text-[10px] text-white/30 uppercase tracking-widest">Tokens: 0</div>
+                    <div id="speed-meter" class="text-[10px] text-white/30 uppercase tracking-widest">0 tok/s</div>
+                </div>
+            </div>
+            <div class="h-safe-bottom"></div>
+        </div>
+
+        <input type="file" id="file-input" class="hidden" multiple accept="image/*">
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="toggleSettings()"></div>
+        <div class="relative glass w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden border-[#76b900]/30">
+            <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                <h2 class="text-xl font-bold flex items-center gap-2">
+                    <svg class="w-6 h-6 text-[#76b900]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Configuration
+                </h2>
+                <button onclick="toggleSettings()" class="text-white/50 hover:text-white">&times;</button>
+            </div>
+            <div class="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+                <div class="space-y-2">
+                    <label class="text-xs uppercase tracking-widest text-white/50 font-semibold">NVIDIA API Key</label>
+                    <input type="password" id="api-key" placeholder="nvapi-..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-[#76b900] transition">
+                    <p class="text-[10px] text-white/30">Stored locally in your browser only.</p>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs uppercase tracking-widest text-white/50 font-semibold">Inference Model</label>
+                    <select id="model-select" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-[#76b900] transition appearance-none">
+                        <option value="meta/llama-3.1-70b-instruct">Llama 3.1 70B Instruct</option>
+                        <option value="meta/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
+                        <option value="meta/llama-3.1-405b-instruct">Llama 3.1 405B Instruct</option>
+                        <option value="nvidia/llama-3.1-nemotron-70b-instruct">Nemotron 70B Instruct</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-xs uppercase tracking-widest text-white/50 font-semibold">Temperature</label>
+                        <input type="range" id="temp-slider" min="0" max="1" step="0.1" value="0.7" class="w-full accent-[#76b900]">
+                        <div class="flex justify-between text-[10px] text-white/50"><span id="temp-val">0.7</span></div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs uppercase tracking-widest text-white/50 font-semibold">Max Tokens</label>
+                        <input type="number" id="max-tokens" value="4096" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#76b900]">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs uppercase tracking-widest text-white/50 font-semibold">System Prompt</label>
+                    <textarea id="system-prompt" rows="3" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#76b900] resize-none"></textarea>
+                </div>
+            </div>
+            <div class="p-6 bg-white/5">
+                <button onclick="saveSettings()" class="w-full bg-[#76b900] text-black font-bold py-3 rounded-xl hover:bg-[#86d200] transition">Save & Apply Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 glass px-6 py-3 rounded-full text-sm z-[200] opacity-0 transition-opacity pointer-events-none border-[#76b900]/50 text-white"></div>
+
+    <script>
+        /**
+         * NVIDIA NIM CHAT INTERFACE - CORE ENGINE
+         * Single-file implementation
+         */
+
+        const CONFIG = {
+            apiBase: 'https://integrate.api.nvidia.com/v1',
+            defaultModel: 'meta/llama-3.1-70b-instruct',
+            storageKey: 'nvidia_nim_chats',
+            settingsKey: 'nvidia_nim_settings'
+        };
+
+        let chats = JSON.parse(localStorage.getItem(CONFIG.storageKey) || '[]');
+        let currentChatId = null;
+        let abortController = null;
+        let settings = JSON.parse(localStorage.getItem(CONFIG.settingsKey) || JSON.stringify({
+            apiKey: '',
+            model: CONFIG.defaultModel,
+            temperature: 0.7,
+            maxTokens: 4096,
+            systemPrompt: 'You are a helpful AI assistant powered by NVIDIA NIM.'
+        }));
+
+        // --- UI Utilities ---
+        const $ = (id) => document.getElementById(id);
+        
+        function showToast(msg) {
+            const t = $('toast');
+            t.innerText = msg;
+            t.style.opacity = '1';
+            setTimeout(() => t.style.opacity = '0', 3000);
+        }
+
+        function toggleSidebar() {
+            $('sidebar').classList.toggle('-translate-x-full');
+            $('sidebar-overlay').classList.toggle('hidden');
+        }
+
+        function toggleSettings() {
+            $('settings-modal').classList.toggle('hidden');
+            if (!$('settings-modal').classList.contains('hidden')) {
+                $('api-key').value = settings.apiKey;
+                $('model-select').value = settings.model;
+                $('temp-slider').value = settings.temperature;
+                $('temp-val').innerText = settings.temperature;
+                $('max-tokens').value = settings.maxTokens;
+                $('system-prompt').value = settings.systemPrompt;
+            }
+        }
+
+        function saveSettings() {
+            settings = {
+                apiKey: $('api-key').value,
+                model: $('model-select').value,
+                temperature: parseFloat($('temp-slider').value),
+                maxTokens: parseInt($('max-tokens').value),
+                systemPrompt: $('system-prompt').value
+            };
+            localStorage.setItem(CONFIG.settingsKey, JSON.stringify(settings));
+            $('current-model-display').innerText = settings.model.split('/').pop();
+            toggleSettings();
+            showToast("Settings Updated");
+        }
+
+        // --- Chat Management ---
+        function createNewChat() {
+            const id = Date.now().toString();
+            const newChat = {
+                id,
+                title: 'New Conversation',
+                messages: [],
+                createdAt: new Date().toISOString()
+            };
+            chats.unshift(newChat);
+            saveChats();
+            loadChat(id);
+            renderChatHistory();
+            if (window.innerWidth < 1024) toggleSidebar();
+        }
+
+        function loadChat(id) {
+            currentChatId = id;
+            const chat = chats.find(c => c.id === id);
+            if (!chat) return;
+
+            const container = $('chat-container');
+            container.innerHTML = '';
+            
+            if (chat.messages.length === 0) {
+                $('welcome-view').style.display = 'flex';
+                container.appendChild
