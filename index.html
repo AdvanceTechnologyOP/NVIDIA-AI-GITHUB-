@@ -1,53 +1,998 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Universal AI Chat</title>
-  <link href="https://cdn.tailwindcss.com" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/dist/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.5.1/dist/highlight.min.js"></script>
-  <style>
-    /* Critical CSS for immediate rendering */
-    body { font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
-    .glass { backdrop-filter: blur(4px); }
-    .thinking { animation: blink 1s infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
-  </style>
+<meta charset="UTF-8" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+/>
+<title>NVIDIA NIM AI Chat</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+/>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+<style>
+:root{
+  --bg:#060b08;
+  --card:#0f1612;
+  --border:#203329;
+  --accent:#76ff8c;
+  --accent2:#00ff99;
+  --text:#e7fff0;
+  --muted:#9ab8a4;
+}
+
+*{
+  scrollbar-width:thin;
+  scrollbar-color:#3b5d48 transparent;
+  box-sizing:border-box;
+}
+
+*::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+*::-webkit-scrollbar-thumb{
+  background:#355641;
+  border-radius:20px;
+}
+*::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+html,body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100%;
+  font-family:Inter,system-ui,sans-serif;
+  overflow:hidden;
+}
+
+body{
+  background:
+    radial-gradient(circle at top left, rgba(0,255,128,.12), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(0,255,170,.08), transparent 35%),
+    #060b08;
+}
+
+#loading{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#050806;
+  color:#7dff9a;
+  font-size:18px;
+  letter-spacing:.08em;
+}
+
+.glass{
+  background:rgba(15,22,18,.75);
+  backdrop-filter:blur(18px);
+  border:1px solid rgba(100,255,150,.08);
+}
+
+.glow{
+  box-shadow:
+    0 0 0 1px rgba(118,255,140,.08),
+    0 0 20px rgba(0,255,120,.12);
+}
+
+.sidebar{
+  transition:transform .3s ease;
+}
+
+.sidebar-hidden{
+  transform:translateX(-100%);
+}
+
+.overlay{
+  background:rgba(0,0,0,.45);
+  backdrop-filter:blur(6px);
+}
+
+.message{
+  animation:fadeUp .2s ease;
+}
+
+@keyframes fadeUp{
+  from{
+    opacity:0;
+    transform:translateY(6px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+.typing::after{
+  content:"▋";
+  margin-left:2px;
+  animation:blink 1s infinite;
+}
+
+@keyframes blink{
+  50%{
+    opacity:0;
+  }
+}
+
+textarea{
+  resize:none;
+}
+
+.markdown pre{
+  position:relative;
+  border-radius:16px;
+  overflow:hidden;
+  background:#0d1117;
+  padding-top:40px;
+}
+
+.markdown pre code{
+  display:block;
+  overflow:auto;
+  padding:18px;
+}
+
+.copy-code{
+  position:absolute;
+  top:8px;
+  right:8px;
+  background:#1f2b23;
+  color:#b9ffd0;
+  border:none;
+  border-radius:10px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-size:12px;
+}
+
+.gpu-dot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:#00ff88;
+  animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+  0%{
+    transform:scale(1);
+    opacity:1;
+  }
+  50%{
+    transform:scale(1.6);
+    opacity:.4;
+  }
+  100%{
+    transform:scale(1);
+    opacity:1;
+  }
+}
+
+.toast{
+  animation:toast .3s ease;
+}
+
+@keyframes toast{
+  from{
+    opacity:0;
+    transform:translateY(10px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+.ai-bg{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.12;
+  background-image:
+    linear-gradient(rgba(0,255,128,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,128,.08) 1px, transparent 1px);
+  background-size:40px 40px;
+  animation:gridMove 20s linear infinite;
+}
+
+@keyframes gridMove{
+  from{
+    transform:translateY(0);
+  }
+  to{
+    transform:translateY(40px);
+  }
+}
+
+.safe-bottom{
+  padding-bottom:calc(env(safe-area-inset-bottom) + 10px);
+}
+
+.fade-theme{
+  transition:background .3s ease,color .3s ease,border-color .3s ease;
+}
+
+.light{
+  --bg:#f5f7f6;
+  --card:#ffffff;
+  --border:#d7e7dc;
+  --accent:#0fa958;
+  --accent2:#10c86d;
+  --text:#0d1c13;
+  --muted:#56705f;
+}
+
+.hljs{
+  background:#0d1117!important;
+}
+</style>
 </head>
-<body>
-<div id="loading" class="fixed inset-0 flex justify-center items-center text-green-500">
-  <div>Loading AI Interface...</div>
+
+<body class="fade-theme">
+
+<div id="loading">Loading AI Interface...</div>
+
+<div class="ai-bg"></div>
+
+<div id="app" class="hidden min-h-screen flex relative">
+
+  <!-- MOBILE OVERLAY -->
+  <div
+    id="overlay"
+    class="hidden fixed inset-0 z-30 overlay"
+  ></div>
+
+  <!-- SIDEBAR -->
+  <aside
+    id="sidebar"
+    class="sidebar fixed md:relative z-40 w-[280px] h-screen glass border-r border-[var(--border)] flex flex-col sidebar-hidden md:translate-x-0"
+  >
+
+    <div class="p-4 border-b border-[var(--border)]">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h1 class="text-xl font-bold text-green-300">
+            NVIDIA AI
+          </h1>
+          <p class="text-xs text-[var(--muted)]">
+            Universal Chat Interface
+          </p>
+        </div>
+
+        <button
+          id="newChatBtn"
+          class="bg-green-500/15 hover:bg-green-500/25 px-3 py-2 rounded-xl"
+        >
+          +
+        </button>
+      </div>
+
+      <input
+        id="chatSearch"
+        placeholder="Search chats..."
+        class="mt-4 w-full bg-black/20 border border-[var(--border)] rounded-xl px-3 py-2 outline-none"
+      />
+    </div>
+
+    <div
+      id="chatList"
+      class="flex-1 overflow-y-auto p-3 space-y-2"
+    ></div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 flex flex-col min-h-screen">
+
+    <!-- TOP BAR -->
+    <header
+      class="glass border-b border-[var(--border)] px-4 py-3 flex items-center justify-between sticky top-0 z-20"
+    >
+      <div class="flex items-center gap-3">
+
+        <button
+          id="menuBtn"
+          class="md:hidden p-2 rounded-xl bg-black/20"
+        >
+          ☰
+        </button>
+
+        <div>
+          <div class="flex items-center gap-2">
+            <div class="gpu-dot"></div>
+            <span id="modelName" class="font-semibold">
+              meta/llama-3.1-70b-instruct
+            </span>
+          </div>
+
+          <div class="text-xs text-[var(--muted)]">
+            NVIDIA NIM Connected
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+
+        <div
+          id="speedMeter"
+          class="hidden sm:block text-xs bg-black/20 px-3 py-2 rounded-xl"
+        >
+          0 tok/s
+        </div>
+
+        <div
+          id="tokenCounter"
+          class="hidden sm:block text-xs bg-black/20 px-3 py-2 rounded-xl"
+        >
+          0 tokens
+        </div>
+
+        <button
+          id="themeBtn"
+          class="p-2 rounded-xl bg-black/20"
+        >
+          🌙
+        </button>
+
+        <button
+          id="settingsBtn"
+          class="p-2 rounded-xl bg-black/20"
+        >
+          ⚙
+        </button>
+
+      </div>
+    </header>
+
+    <!-- CHAT -->
+    <section
+      id="chatContainer"
+      class="flex-1 overflow-y-auto px-3 md:px-6 py-5 space-y-5"
+    ></section>
+
+    <!-- INPUT -->
+    <div class="safe-bottom px-3 md:px-6 py-3 sticky bottom-0 z-20">
+      <div
+        class="glass glow rounded-3xl border border-[var(--border)] p-3"
+      >
+
+        <div
+          id="filePreview"
+          class="hidden mb-3"
+        ></div>
+
+        <div class="flex items-end gap-2">
+
+          <button
+            id="uploadBtn"
+            class="p-3 rounded-2xl bg-black/20"
+          >
+            📎
+          </button>
+
+          <textarea
+            id="promptInput"
+            rows="1"
+            placeholder="Ask NVIDIA AI..."
+            class="flex-1 bg-transparent outline-none max-h-[200px] overflow-y-auto px-2 py-3"
+          ></textarea>
+
+          <button
+            id="voiceBtn"
+            class="p-3 rounded-2xl bg-black/20"
+          >
+            🎤
+          </button>
+
+          <button
+            id="stopBtn"
+            class="hidden p-3 rounded-2xl bg-red-500/20"
+          >
+            ⏹
+          </button>
+
+          <button
+            id="sendBtn"
+            class="p-3 rounded-2xl bg-green-500/20"
+          >
+            ➤
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
 </div>
 
-<div id="app" class="hidden h-screen flex flex-col" style="display:none;">
-  <!-- UI Structure Here -->
+<!-- SETTINGS MODAL -->
+<div
+  id="settingsModal"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overlay"
+>
+  <div
+    class="glass w-full max-w-lg rounded-3xl p-5 border border-[var(--border)]"
+  >
+
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold">Settings</h2>
+
+      <button id="closeSettings">✕</button>
+    </div>
+
+    <div class="space-y-4">
+
+      <div>
+        <label class="text-sm text-[var(--muted)]">
+          NVIDIA API Key
+        </label>
+
+        <input
+          id="apiKeyInput"
+          type="password"
+          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-[var(--muted)]">
+          Model
+        </label>
+
+        <select
+          id="modelSelect"
+          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
+        >
+          <option>meta/llama-3.1-70b-instruct</option>
+          <option>meta/llama-3.1-405b-instruct</option>
+          <option>mistralai/mixtral-8x7b-instruct-v0.1</option>
+          <option>google/gemma-7b</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="text-sm text-[var(--muted)]">
+          Temperature
+        </label>
+
+        <input
+          id="tempInput"
+          type="range"
+          min="0"
+          max="2"
+          step="0.1"
+          class="w-full"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-[var(--muted)]">
+          Max Tokens
+        </label>
+
+        <input
+          id="maxTokensInput"
+          type="number"
+          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
+        />
+      </div>
+
+      <div>
+        <label class="text-sm text-[var(--muted)]">
+          System Prompt
+        </label>
+
+        <textarea
+          id="systemPromptInput"
+          rows="5"
+          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
+        ></textarea>
+      </div>
+
+      <button
+        id="saveSettingsBtn"
+        class="w-full py-3 rounded-2xl bg-green-500/20"
+      >
+        Save Settings
+      </button>
+
+    </div>
+
+  </div>
 </div>
+
+<!-- TOAST -->
+<div
+  id="toastContainer"
+  class="fixed bottom-24 right-4 z-50 space-y-2"
+></div>
+
+<input
+  type="file"
+  id="fileInput"
+  class="hidden"
+  accept="image/*"
+/>
 
 <script>
-// Entire Application Code
-const APP = {
+(() => {
+
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  chats: [],
+  currentChatId: null,
+  generating: false,
+  controller: null,
+  autoScroll: true,
+  currentTokens: 0,
+  tokenStartTime: 0,
+  streamBuffer: '',
+  theme: localStorage.getItem('theme') || 'dark',
   settings: {
-    apiKey: localStorage.getItem('nvidiaApiKey') || '',
+    apiKey: '',
     model: 'meta/llama-3.1-70b-instruct',
     temperature: 0.7,
-    maxTokens: 1024,
-    darkMode: localStorage.getItem('darkMode') === 'true'
-  },
-  chats: JSON.parse(localStorage.getItem('chats')) || [],
-  currentChat: null,
-  init() {
-    this.loadUI();
-    this.bindEvents();
-    this.checkAPIKey();
-    this.restoreState();
-    document.getElementById('loading').remove();
-    document.getElementById('app').classList.remove('hidden');
-  },
-  // ... (rest of the application logic)
+    max_tokens: 2048,
+    systemPrompt: 'You are a helpful AI assistant.'
+  }
 };
 
-APP.init();
-</script>
-</body>
-</html>
+const app = $('app');
+const loading = $('loading');
+const chatContainer = $('chatContainer');
+const promptInput = $('promptInput');
+const sendBtn = $('sendBtn');
+const stopBtn = $('stopBtn');
+const menuBtn = $('menuBtn');
+const sidebar = $('sidebar');
+const overlay = $('overlay');
+const chatList = $('chatList');
+const newChatBtn = $('newChatBtn');
+const settingsBtn = $('settingsBtn');
+const settingsModal = $('settingsModal');
+const closeSettings = $('closeSettings');
+const saveSettingsBtn = $('saveSettingsBtn');
+const modelName = $('modelName');
+const themeBtn = $('themeBtn');
+const tokenCounter = $('tokenCounter');
+const speedMeter = $('speedMeter');
+const uploadBtn = $('uploadBtn');
+const fileInput = $('fileInput');
+const filePreview = $('filePreview');
+const voiceBtn = $('voiceBtn');
+const chatSearch = $('chatSearch');
+
+function init(){
+
+  loadSettings();
+  loadChats();
+  applyTheme();
+  setupMarked();
+  bindEvents();
+
+  if(!state.chats.length){
+    createChat();
+  } else {
+    renderChats();
+    openChat(state.chats[0].id);
+  }
+
+  registerSW();
+  setupPWA();
+
+  requestAnimationFrame(() => {
+    loading.style.display = 'none';
+    app.classList.remove('hidden');
+  });
+}
+
+function setupMarked(){
+  marked.setOptions({
+    breaks:true,
+    highlight:function(code,lang){
+      try{
+        if(lang && hljs.getLanguage(lang)){
+          return hljs.highlight(code,{language:lang}).value;
+        }
+      }catch(e){}
+      return hljs.highlightAuto(code).value;
+    }
+  });
+}
+
+function bindEvents(){
+
+  sendBtn.addEventListener('click',sendMessage);
+
+  stopBtn.addEventListener('click',stopGeneration);
+
+  promptInput.addEventListener('input',autoResize);
+
+  promptInput.addEventListener('keydown',(e)=>{
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  document.addEventListener('keydown',(e)=>{
+    if(e.ctrlKey && e.key.toLowerCase() === 'k'){
+      e.preventDefault();
+      promptInput.focus();
+    }
+  });
+
+  menuBtn.addEventListener('click',toggleSidebar);
+
+  overlay.addEventListener('click',closeSidebar);
+
+  newChatBtn.addEventListener('click',()=>{
+    createChat();
+    if(window.innerWidth < 768){
+      closeSidebar();
+    }
+  });
+
+  settingsBtn.addEventListener('click',()=>{
+    settingsModal.classList.remove('hidden');
+  });
+
+  closeSettings.addEventListener('click',()=>{
+    settingsModal.classList.add('hidden');
+  });
+
+  saveSettingsBtn.addEventListener('click',saveSettings);
+
+  themeBtn.addEventListener('click',toggleTheme);
+
+  uploadBtn.addEventListener('click',()=>{
+    fileInput.click();
+  });
+
+  fileInput.addEventListener('change',handleFile);
+
+  voiceBtn.addEventListener('click',startVoiceInput);
+
+  chatContainer.addEventListener('scroll',()=>{
+    const threshold = 150;
+    const distance =
+      chatContainer.scrollHeight -
+      chatContainer.scrollTop -
+      chatContainer.clientHeight;
+
+    state.autoScroll = distance < threshold;
+  });
+
+  chatSearch.addEventListener('input',renderChats);
+}
+
+function toggleSidebar(){
+  sidebar.classList.toggle('sidebar-hidden');
+  overlay.classList.toggle('hidden');
+}
+
+function closeSidebar(){
+  sidebar.classList.add('sidebar-hidden');
+  overlay.classList.add('hidden');
+}
+
+function autoResize(){
+  promptInput.style.height = 'auto';
+  promptInput.style.height =
+    Math.min(promptInput.scrollHeight,200) + 'px';
+}
+
+function showToast(text){
+  const el = document.createElement('div');
+
+  el.className =
+    'toast glass border border-[var(--border)] px-4 py-3 rounded-2xl text-sm';
+
+  el.textContent = text;
+
+  $('toastContainer').appendChild(el);
+
+  setTimeout(()=>{
+    el.remove();
+  },3000);
+}
+
+function vibrate(ms=20){
+  try{
+    navigator.vibrate(ms);
+  }catch(e){}
+}
+
+function generateId(){
+  return Date.now() + '_' + Math.random().toString(36).slice(2);
+}
+
+function createChat(){
+
+  const id = generateId();
+
+  const chat = {
+    id,
+    title:'New Chat',
+    created:Date.now(),
+    messages:[]
+  };
+
+  state.chats.unshift(chat);
+
+  state.currentChatId = id;
+
+  persistChats();
+
+  renderChats();
+
+  renderMessages();
+
+  vibrate();
+}
+
+function getCurrentChat(){
+  return state.chats.find(c => c.id === state.currentChatId);
+}
+
+function openChat(id){
+
+  state.currentChatId = id;
+
+  renderChats();
+
+  renderMessages();
+
+  if(window.innerWidth < 768){
+    closeSidebar();
+  }
+}
+
+function deleteChat(id){
+
+  state.chats = state.chats.filter(c => c.id !== id);
+
+  if(!state.chats.length){
+    createChat();
+    return;
+  }
+
+  if(state.currentChatId === id){
+    state.currentChatId = state.chats[0].id;
+  }
+
+  persistChats();
+
+  renderChats();
+
+  renderMessages();
+}
+
+function renameChat(id){
+
+  const chat = state.chats.find(c => c.id === id);
+
+  if(!chat) return;
+
+  const name = prompt('Rename chat',chat.title);
+
+  if(!name) return;
+
+  chat.title = name;
+
+  persistChats();
+
+  renderChats();
+}
+
+function exportChat(type){
+
+  const chat = getCurrentChat();
+
+  if(!chat) return;
+
+  let content = '';
+
+  if(type === 'txt'){
+    content = chat.messages.map(m =>
+      `${m.role.toUpperCase()}:\n${m.content}\n`
+    ).join('\n');
+  }
+
+  if(type === 'md'){
+    content = chat.messages.map(m =>
+      `## ${m.role}\n\n${m.content}`
+    ).join('\n\n');
+  }
+
+  if(type === 'json'){
+    content = JSON.stringify(chat,null,2);
+  }
+
+  const blob = new Blob([content],{type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+
+  a.href = url;
+  a.download = `${chat.title}.${type}`;
+
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function renderChats(){
+
+  const query = chatSearch.value.toLowerCase();
+
+  chatList.innerHTML = '';
+
+  state.chats
+    .filter(c => c.title.toLowerCase().includes(query))
+    .forEach(chat => {
+
+      const div = document.createElement('div');
+
+      div.className =
+        'glass rounded-2xl p-3 cursor-pointer border ' +
+        (chat.id === state.currentChatId
+          ? 'border-green-400/40'
+          : 'border-transparent');
+
+      div.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="truncate font-medium">
+              ${escapeHtml(chat.title)}
+            </div>
+            <div class="text-xs text-[var(--muted)] mt-1">
+              ${chat.messages.length} messages
+            </div>
+          </div>
+
+          <div class="flex gap-1">
+            <button data-action="rename">✏</button>
+            <button data-action="delete">🗑</button>
+          </div>
+        </div>
+
+        <div class="mt-2 flex gap-1">
+          <button
+            data-export="txt"
+            class="text-xs bg-black/20 px-2 py-1 rounded-lg"
+          >
+            TXT
+          </button>
+
+          <button
+            data-export="md"
+            class="text-xs bg-black/20 px-2 py-1 rounded-lg"
+          >
+            MD
+          </button>
+
+          <button
+            data-export="json"
+            class="text-xs bg-black/20 px-2 py-1 rounded-lg"
+          >
+            JSON
+          </button>
+        </div>
+      `;
+
+      div.addEventListener('click',(e)=>{
+
+        const action = e.target.dataset.action;
+        const exportType = e.target.dataset.export;
+
+        if(action === 'delete'){
+          e.stopPropagation();
+          deleteChat(chat.id);
+          return;
+        }
+
+        if(action === 'rename'){
+          e.stopPropagation();
+          renameChat(chat.id);
+          return;
+        }
+
+        if(exportType){
+          e.stopPropagation();
+          exportChat(exportType);
+          return;
+        }
+
+        openChat(chat.id);
+      });
+
+      chatList.appendChild(div);
+    });
+}
+
+function renderMessages(){
+
+  const chat = getCurrentChat();
+
+  if(!chat) return;
+
+  chatContainer.innerHTML = '';
+
+  chat.messages.forEach((msg,index)=>{
+    appendMessage(msg,index);
+  });
+
+  scrollBottom(true);
+}
+
+function appendMessage(msg,index){
+
+  const wrap = document.createElement('div');
+
+  wrap.className =
+    'message flex ' +
+    (msg.role === 'user'
+      ? 'justify-end'
+      : 'justify-start');
+
+  const bubble = document.createElement('div');
+
+  bubble.className =
+    'glass border border-[var(--border)] rounded-3xl p-4 max-w-[90%] md:max-w-[75%]';
+
+  const html =
+    msg.role === 'assistant'
+      ? marked.parse(msg.content || '')
+      : `<div class="whitespace-pre-wrap">${escapeHtml(msg.content)}</div>`;
+
+  bubble.innerHTML = `
+    <div class="markdown prose prose-invert max-w-none">
+      ${html}
+    </div>
+
+    <div class="mt-3 flex gap-2 text-xs opacity-70">
+      <button data-copy="${index}">Copy</button>
+      <button data-delete="${index}">Delete</button>
+
+      ${msg.role === 'assistant'
+        ? `<button data-regenerate="${index}">Retry</button>`
+        : `<button data-edit="${index}">Edit</button>`
+      }
+    </div>
+  `;
+
+  wrap.appendChild(bubble);
+
+  chatContainer.appendChild(wrap);
+
+  bubble.querySelectorAll('pre').forEach(pre => {
+
+    const btn = document.createElement('button');
+
+    btn.className = 'copy-code';
+    btn.textContent = 'Copy';
+
+    btn.addEventListener('click',()=>{
+      navigator.clipboard.writeText(pre.innerText);
+      sho
