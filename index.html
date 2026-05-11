@@ -1,998 +1,349 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-/>
-<title>NVIDIA NIM AI Chat</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
-/>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-<style>
-:root{
-  --bg:#060b08;
-  --card:#0f1612;
-  --border:#203329;
-  --accent:#76ff8c;
-  --accent2:#00ff99;
-  --text:#e7fff0;
-  --muted:#9ab8a4;
-}
-
-*{
-  scrollbar-width:thin;
-  scrollbar-color:#3b5d48 transparent;
-  box-sizing:border-box;
-}
-
-*::-webkit-scrollbar{
-  width:8px;
-  height:8px;
-}
-*::-webkit-scrollbar-thumb{
-  background:#355641;
-  border-radius:20px;
-}
-*::-webkit-scrollbar-track{
-  background:transparent;
-}
-
-html,body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  min-height:100%;
-  font-family:Inter,system-ui,sans-serif;
-  overflow:hidden;
-}
-
-body{
-  background:
-    radial-gradient(circle at top left, rgba(0,255,128,.12), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(0,255,170,.08), transparent 35%),
-    #060b08;
-}
-
-#loading{
-  position:fixed;
-  inset:0;
-  z-index:9999;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:#050806;
-  color:#7dff9a;
-  font-size:18px;
-  letter-spacing:.08em;
-}
-
-.glass{
-  background:rgba(15,22,18,.75);
-  backdrop-filter:blur(18px);
-  border:1px solid rgba(100,255,150,.08);
-}
-
-.glow{
-  box-shadow:
-    0 0 0 1px rgba(118,255,140,.08),
-    0 0 20px rgba(0,255,120,.12);
-}
-
-.sidebar{
-  transition:transform .3s ease;
-}
-
-.sidebar-hidden{
-  transform:translateX(-100%);
-}
-
-.overlay{
-  background:rgba(0,0,0,.45);
-  backdrop-filter:blur(6px);
-}
-
-.message{
-  animation:fadeUp .2s ease;
-}
-
-@keyframes fadeUp{
-  from{
-    opacity:0;
-    transform:translateY(6px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
-
-.typing::after{
-  content:"▋";
-  margin-left:2px;
-  animation:blink 1s infinite;
-}
-
-@keyframes blink{
-  50%{
-    opacity:0;
-  }
-}
-
-textarea{
-  resize:none;
-}
-
-.markdown pre{
-  position:relative;
-  border-radius:16px;
-  overflow:hidden;
-  background:#0d1117;
-  padding-top:40px;
-}
-
-.markdown pre code{
-  display:block;
-  overflow:auto;
-  padding:18px;
-}
-
-.copy-code{
-  position:absolute;
-  top:8px;
-  right:8px;
-  background:#1f2b23;
-  color:#b9ffd0;
-  border:none;
-  border-radius:10px;
-  padding:6px 10px;
-  cursor:pointer;
-  font-size:12px;
-}
-
-.gpu-dot{
-  width:10px;
-  height:10px;
-  border-radius:999px;
-  background:#00ff88;
-  animation:pulse 1.5s infinite;
-}
-
-@keyframes pulse{
-  0%{
-    transform:scale(1);
-    opacity:1;
-  }
-  50%{
-    transform:scale(1.6);
-    opacity:.4;
-  }
-  100%{
-    transform:scale(1);
-    opacity:1;
-  }
-}
-
-.toast{
-  animation:toast .3s ease;
-}
-
-@keyframes toast{
-  from{
-    opacity:0;
-    transform:translateY(10px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
-
-.ai-bg{
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  opacity:.12;
-  background-image:
-    linear-gradient(rgba(0,255,128,.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,128,.08) 1px, transparent 1px);
-  background-size:40px 40px;
-  animation:gridMove 20s linear infinite;
-}
-
-@keyframes gridMove{
-  from{
-    transform:translateY(0);
-  }
-  to{
-    transform:translateY(40px);
-  }
-}
-
-.safe-bottom{
-  padding-bottom:calc(env(safe-area-inset-bottom) + 10px);
-}
-
-.fade-theme{
-  transition:background .3s ease,color .3s ease,border-color .3s ease;
-}
-
-.light{
-  --bg:#f5f7f6;
-  --card:#ffffff;
-  --border:#d7e7dc;
-  --accent:#0fa958;
-  --accent2:#10c86d;
-  --text:#0d1c13;
-  --muted:#56705f;
-}
-
-.hljs{
-  background:#0d1117!important;
-}
-</style>
-</head>
-
-<body class="fade-theme">
-
-<div id="loading">Loading AI Interface...</div>
-
-<div class="ai-bg"></div>
-
-<div id="app" class="hidden min-h-screen flex relative">
-
-  <!-- MOBILE OVERLAY -->
-  <div
-    id="overlay"
-    class="hidden fixed inset-0 z-30 overlay"
-  ></div>
-
-  <!-- SIDEBAR -->
-  <aside
-    id="sidebar"
-    class="sidebar fixed md:relative z-40 w-[280px] h-screen glass border-r border-[var(--border)] flex flex-col sidebar-hidden md:translate-x-0"
-  >
-
-    <div class="p-4 border-b border-[var(--border)]">
-      <div class="flex items-center justify-between gap-2">
-        <div>
-          <h1 class="text-xl font-bold text-green-300">
-            NVIDIA AI
-          </h1>
-          <p class="text-xs text-[var(--muted)]">
-            Universal Chat Interface
-          </p>
-        </div>
-
-        <button
-          id="newChatBtn"
-          class="bg-green-500/15 hover:bg-green-500/25 px-3 py-2 rounded-xl"
-        >
-          +
-        </button>
-      </div>
-
-      <input
-        id="chatSearch"
-        placeholder="Search chats..."
-        class="mt-4 w-full bg-black/20 border border-[var(--border)] rounded-xl px-3 py-2 outline-none"
-      />
-    </div>
-
-    <div
-      id="chatList"
-      class="flex-1 overflow-y-auto p-3 space-y-2"
-    ></div>
-
-  </aside>
-
-  <!-- MAIN -->
-  <main class="flex-1 flex flex-col min-h-screen">
-
-    <!-- TOP BAR -->
-    <header
-      class="glass border-b border-[var(--border)] px-4 py-3 flex items-center justify-between sticky top-0 z-20"
-    >
-      <div class="flex items-center gap-3">
-
-        <button
-          id="menuBtn"
-          class="md:hidden p-2 rounded-xl bg-black/20"
-        >
-          ☰
-        </button>
-
-        <div>
-          <div class="flex items-center gap-2">
-            <div class="gpu-dot"></div>
-            <span id="modelName" class="font-semibold">
-              meta/llama-3.1-70b-instruct
-            </span>
-          </div>
-
-          <div class="text-xs text-[var(--muted)]">
-            NVIDIA NIM Connected
-          </div>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2">
-
-        <div
-          id="speedMeter"
-          class="hidden sm:block text-xs bg-black/20 px-3 py-2 rounded-xl"
-        >
-          0 tok/s
-        </div>
-
-        <div
-          id="tokenCounter"
-          class="hidden sm:block text-xs bg-black/20 px-3 py-2 rounded-xl"
-        >
-          0 tokens
-        </div>
-
-        <button
-          id="themeBtn"
-          class="p-2 rounded-xl bg-black/20"
-        >
-          🌙
-        </button>
-
-        <button
-          id="settingsBtn"
-          class="p-2 rounded-xl bg-black/20"
-        >
-          ⚙
-        </button>
-
-      </div>
-    </header>
-
-    <!-- CHAT -->
-    <section
-      id="chatContainer"
-      class="flex-1 overflow-y-auto px-3 md:px-6 py-5 space-y-5"
-    ></section>
-
-    <!-- INPUT -->
-    <div class="safe-bottom px-3 md:px-6 py-3 sticky bottom-0 z-20">
-      <div
-        class="glass glow rounded-3xl border border-[var(--border)] p-3"
-      >
-
-        <div
-          id="filePreview"
-          class="hidden mb-3"
-        ></div>
-
-        <div class="flex items-end gap-2">
-
-          <button
-            id="uploadBtn"
-            class="p-3 rounded-2xl bg-black/20"
-          >
-            📎
-          </button>
-
-          <textarea
-            id="promptInput"
-            rows="1"
-            placeholder="Ask NVIDIA AI..."
-            class="flex-1 bg-transparent outline-none max-h-[200px] overflow-y-auto px-2 py-3"
-          ></textarea>
-
-          <button
-            id="voiceBtn"
-            class="p-3 rounded-2xl bg-black/20"
-          >
-            🎤
-          </button>
-
-          <button
-            id="stopBtn"
-            class="hidden p-3 rounded-2xl bg-red-500/20"
-          >
-            ⏹
-          </button>
-
-          <button
-            id="sendBtn"
-            class="p-3 rounded-2xl bg-green-500/20"
-          >
-            ➤
-          </button>
-
-        </div>
-
-      </div>
-    </div>
-
-  </main>
-
-</div>
-
-<!-- SETTINGS MODAL -->
-<div
-  id="settingsModal"
-  class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overlay"
->
-  <div
-    class="glass w-full max-w-lg rounded-3xl p-5 border border-[var(--border)]"
-  >
-
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-xl font-bold">Settings</h2>
-
-      <button id="closeSettings">✕</button>
-    </div>
-
-    <div class="space-y-4">
-
-      <div>
-        <label class="text-sm text-[var(--muted)]">
-          NVIDIA API Key
-        </label>
-
-        <input
-          id="apiKeyInput"
-          type="password"
-          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
-        />
-      </div>
-
-      <div>
-        <label class="text-sm text-[var(--muted)]">
-          Model
-        </label>
-
-        <select
-          id="modelSelect"
-          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
-        >
-          <option>meta/llama-3.1-70b-instruct</option>
-          <option>meta/llama-3.1-405b-instruct</option>
-          <option>mistralai/mixtral-8x7b-instruct-v0.1</option>
-          <option>google/gemma-7b</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="text-sm text-[var(--muted)]">
-          Temperature
-        </label>
-
-        <input
-          id="tempInput"
-          type="range"
-          min="0"
-          max="2"
-          step="0.1"
-          class="w-full"
-        />
-      </div>
-
-      <div>
-        <label class="text-sm text-[var(--muted)]">
-          Max Tokens
-        </label>
-
-        <input
-          id="maxTokensInput"
-          type="number"
-          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
-        />
-      </div>
-
-      <div>
-        <label class="text-sm text-[var(--muted)]">
-          System Prompt
-        </label>
-
-        <textarea
-          id="systemPromptInput"
-          rows="5"
-          class="w-full mt-1 bg-black/20 border border-[var(--border)] rounded-xl px-3 py-3 outline-none"
-        ></textarea>
-      </div>
-
-      <button
-        id="saveSettingsBtn"
-        class="w-full py-3 rounded-2xl bg-green-500/20"
-      >
-        Save Settings
-      </button>
-
-    </div>
-
-  </div>
-</div>
-
-<!-- TOAST -->
-<div
-  id="toastContainer"
-  class="fixed bottom-24 right-4 z-50 space-y-2"
-></div>
-
-<input
-  type="file"
-  id="fileInput"
-  class="hidden"
-  accept="image/*"
-/>
-
-<script>
-(() => {
-
-'use strict';
-
-const $ = (id) => document.getElementById(id);
-
-const state = {
-  chats: [],
-  currentChatId: null,
-  generating: false,
-  controller: null,
-  autoScroll: true,
-  currentTokens: 0,
-  tokenStartTime: 0,
-  streamBuffer: '',
-  theme: localStorage.getItem('theme') || 'dark',
-  settings: {
-    apiKey: '',
-    model: 'meta/llama-3.1-70b-instruct',
-    temperature: 0.7,
-    max_tokens: 2048,
-    systemPrompt: 'You are a helpful AI assistant.'
-  }
-};
-
-const app = $('app');
-const loading = $('loading');
-const chatContainer = $('chatContainer');
-const promptInput = $('promptInput');
-const sendBtn = $('sendBtn');
-const stopBtn = $('stopBtn');
-const menuBtn = $('menuBtn');
-const sidebar = $('sidebar');
-const overlay = $('overlay');
-const chatList = $('chatList');
-const newChatBtn = $('newChatBtn');
-const settingsBtn = $('settingsBtn');
-const settingsModal = $('settingsModal');
-const closeSettings = $('closeSettings');
-const saveSettingsBtn = $('saveSettingsBtn');
-const modelName = $('modelName');
-const themeBtn = $('themeBtn');
-const tokenCounter = $('tokenCounter');
-const speedMeter = $('speedMeter');
-const uploadBtn = $('uploadBtn');
-const fileInput = $('fileInput');
-const filePreview = $('filePreview');
-const voiceBtn = $('voiceBtn');
-const chatSearch = $('chatSearch');
-
-function init(){
-
-  loadSettings();
-  loadChats();
-  applyTheme();
-  setupMarked();
-  bindEvents();
-
-  if(!state.chats.length){
-    createChat();
-  } else {
-    renderChats();
-    openChat(state.chats[0].id);
-  }
-
-  registerSW();
-  setupPWA();
-
-  requestAnimationFrame(() => {
-    loading.style.display = 'none';
-    app.classList.remove('hidden');
-  });
-}
-
-function setupMarked(){
-  marked.setOptions({
-    breaks:true,
-    highlight:function(code,lang){
-      try{
-        if(lang && hljs.getLanguage(lang)){
-          return hljs.highlight(code,{language:lang}).value;
-        }
-      }catch(e){}
-      return hljs.highlightAuto(code).value;
-    }
-  });
-}
-
-function bindEvents(){
-
-  sendBtn.addEventListener('click',sendMessage);
-
-  stopBtn.addEventListener('click',stopGeneration);
-
-  promptInput.addEventListener('input',autoResize);
-
-  promptInput.addEventListener('keydown',(e)=>{
-    if(e.key === 'Enter' && !e.shiftKey){
-      e.preventDefault();
-      sendMessage();
-    }
+                                                        (function UniversalArchitecture() {
+  const [state, setState] = React.useState({                theme: 'light',                                         language: 'en',
+    viewport: 'desktop',                                    user: null,                                             data: [],
+    loading: false,                                         error: null,                                            modals: [],
+    toasts: []
   });
 
-  document.addEventListener('keydown',(e)=>{
-    if(e.ctrlKey && e.key.toLowerCase() === 'k'){
-      e.preventDefault();
-      promptInput.focus();
-    }
-  });
-
-  menuBtn.addEventListener('click',toggleSidebar);
-
-  overlay.addEventListener('click',closeSidebar);
-
-  newChatBtn.addEventListener('click',()=>{
-    createChat();
-    if(window.innerWidth < 768){
-      closeSidebar();
-    }
-  });
-
-  settingsBtn.addEventListener('click',()=>{
-    settingsModal.classList.remove('hidden');
-  });
-
-  closeSettings.addEventListener('click',()=>{
-    settingsModal.classList.add('hidden');
-  });
-
-  saveSettingsBtn.addEventListener('click',saveSettings);
-
-  themeBtn.addEventListener('click',toggleTheme);
-
-  uploadBtn.addEventListener('click',()=>{
-    fileInput.click();
-  });
-
-  fileInput.addEventListener('change',handleFile);
-
-  voiceBtn.addEventListener('click',startVoiceInput);
-
-  chatContainer.addEventListener('scroll',()=>{
-    const threshold = 150;
-    const distance =
-      chatContainer.scrollHeight -
-      chatContainer.scrollTop -
-      chatContainer.clientHeight;
-
-    state.autoScroll = distance < threshold;
-  });
-
-  chatSearch.addEventListener('input',renderChats);
-}
-
-function toggleSidebar(){
-  sidebar.classList.toggle('sidebar-hidden');
-  overlay.classList.toggle('hidden');
-}
-
-function closeSidebar(){
-  sidebar.classList.add('sidebar-hidden');
-  overlay.classList.add('hidden');
-}
-
-function autoResize(){
-  promptInput.style.height = 'auto';
-  promptInput.style.height =
-    Math.min(promptInput.scrollHeight,200) + 'px';
-}
-
-function showToast(text){
-  const el = document.createElement('div');
-
-  el.className =
-    'toast glass border border-[var(--border)] px-4 py-3 rounded-2xl text-sm';
-
-  el.textContent = text;
-
-  $('toastContainer').appendChild(el);
-
-  setTimeout(()=>{
-    el.remove();
-  },3000);
-}
-
-function vibrate(ms=20){
-  try{
-    navigator.vibrate(ms);
-  }catch(e){}
-}
-
-function generateId(){
-  return Date.now() + '_' + Math.random().toString(36).slice(2);
-}
-
-function createChat(){
-
-  const id = generateId();
-
-  const chat = {
-    id,
-    title:'New Chat',
-    created:Date.now(),
-    messages:[]
+  // Core architecture utilities
+  const useMediaQuery = (query) => {
+    const [matches, setMatches] = React.useState(window.matchMedia(query).matches);
+    React.useEffect(() => {
+      const mql = window.matchMedia(query);
+      const handler = (e) => setMatches(e.matches);
+      mql.addEventListener('change', handler);
+      return () => mql.removeEventListener('change', handler);
+    }, [query]);
+    return matches;
   };
 
-  state.chats.unshift(chat);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
-  state.currentChatId = id;
+  React.useEffect(() => {
+    setState(prev => ({
+      ...prev,
+      viewport: isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop'
+    }));
+  }, [isMobile, isTablet, isDesktop]);
 
-  persistChats();
+  // Global state management
+  const dispatch = (action) => {
+    switch(action.type) {
+      case 'SET_THEME':
+        setState(prev => ({ ...prev, theme: action.payload }));
+        document.documentElement.setAttribute('data-theme', action.payload);
+        break;
+      case 'SET_LANGUAGE':
+        setState(prev => ({ ...prev, language: action.payload }));
+        break;
+      case 'SET_USER':
+        setState(prev => ({ ...prev, user: action.payload }));
+        break;
+      case 'SET_LOADING':
+        setState(prev => ({ ...prev, loading: action.payload }));
+        break;
+      case 'SET_ERROR':
+        setState(prev => ({ ...prev, error: action.payload }));
+        break;
+      case 'SET_DATA':
+        setState(prev => ({ ...prev, data: action.payload }));
+        break;
+      case 'ADD_TOAST':
+        setState(prev => ({ ...prev, toasts: [...prev.toasts, action.payload] }));
+        break;
+      case 'REMOVE_TOAST':
+        setState(prev => ({ ...prev, toasts: prev.toasts.filter(t => t.id !== action.payload) }));
+        break;
+      case 'ADD_MODAL':
+        setState(prev => ({ ...prev, modals: [...prev.modals, action.payload] }));
+        break;
+      case 'REMOVE_MODAL':
+        setState(prev => ({ ...prev, modals: prev.modals.filter(m => m.id !== action.payload) }));
+        break;
+      default:
+        break;
+    }
+  };
 
-  renderChats();
-
-  renderMessages();
-
-  vibrate();
-}
-
-function getCurrentChat(){
-  return state.chats.find(c => c.id === state.currentChatId);
-}
-
-function openChat(id){
-
-  state.currentChatId = id;
-
-  renderChats();
-
-  renderMessages();
-
-  if(window.innerWidth < 768){
-    closeSidebar();
-  }
-}
-
-function deleteChat(id){
-
-  state.chats = state.chats.filter(c => c.id !== id);
-
-  if(!state.chats.length){
-    createChat();
-    return;
-  }
-
-  if(state.currentChatId === id){
-    state.currentChatId = state.chats[0].id;
-  }
-
-  persistChats();
-
-  renderChats();
-
-  renderMessages();
-}
-
-function renameChat(id){
-
-  const chat = state.chats.find(c => c.id === id);
-
-  if(!chat) return;
-
-  const name = prompt('Rename chat',chat.title);
-
-  if(!name) return;
-
-  chat.title = name;
-
-  persistChats();
-
-  renderChats();
-}
-
-function exportChat(type){
-
-  const chat = getCurrentChat();
-
-  if(!chat) return;
-
-  let content = '';
-
-  if(type === 'txt'){
-    content = chat.messages.map(m =>
-      `${m.role.toUpperCase()}:\n${m.content}\n`
-    ).join('\n');
-  }
-
-  if(type === 'md'){
-    content = chat.messages.map(m =>
-      `## ${m.role}\n\n${m.content}`
-    ).join('\n\n');
-  }
-
-  if(type === 'json'){
-    content = JSON.stringify(chat,null,2);
-  }
-
-  const blob = new Blob([content],{type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-
-  a.href = url;
-  a.download = `${chat.title}.${type}`;
-
-  a.click();
-
-  URL.revokeObjectURL(url);
-}
-
-function renderChats(){
-
-  const query = chatSearch.value.toLowerCase();
-
-  chatList.innerHTML = '';
-
-  state.chats
-    .filter(c => c.title.toLowerCase().includes(query))
-    .forEach(chat => {
-
-      const div = document.createElement('div');
-
-      div.className =
-        'glass rounded-2xl p-3 cursor-pointer border ' +
-        (chat.id === state.currentChatId
-          ? 'border-green-400/40'
-          : 'border-transparent');
-
-      div.innerHTML = `
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex-1 min-w-0">
-            <div class="truncate font-medium">
-              ${escapeHtml(chat.title)}
-            </div>
-            <div class="text-xs text-[var(--muted)] mt-1">
-              ${chat.messages.length} messages
-            </div>
-          </div>
-
-          <div class="flex gap-1">
-            <button data-action="rename">✏</button>
-            <button data-action="delete">🗑</button>
-          </div>
-        </div>
-
-        <div class="mt-2 flex gap-1">
-          <button
-            data-export="txt"
-            class="text-xs bg-black/20 px-2 py-1 rounded-lg"
-          >
-            TXT
-          </button>
-
-          <button
-            data-export="md"
-            class="text-xs bg-black/20 px-2 py-1 rounded-lg"
-          >
-            MD
-          </button>
-
-          <button
-            data-export="json"
-            class="text-xs bg-black/20 px-2 py-1 rounded-lg"
-          >
-            JSON
-          </button>
-        </div>
-      `;
-
-      div.addEventListener('click',(e)=>{
-
-        const action = e.target.dataset.action;
-        const exportType = e.target.dataset.export;
-
-        if(action === 'delete'){
-          e.stopPropagation();
-          deleteChat(chat.id);
-          return;
-        }
-
-        if(action === 'rename'){
-          e.stopPropagation();
-          renameChat(chat.id);
-          return;
-        }
-
-        if(exportType){
-          e.stopPropagation();
-          exportChat(exportType);
-          return;
-        }
-
-        openChat(chat.id);
+  // Data fetching with error handling
+  const fetchData = async (url, options = {}) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
       });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      dispatch({ type: 'SET_DATA', payload: data });
+      return data;
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      return null;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
 
-      chatList.appendChild(div);
-    });
-}
+  // Toast notification system
+  const showToast = (message, type = 'info', duration = 3000) => {
+    const id = Date.now().toString();
+    dispatch({ type: 'ADD_TOAST', payload: { id, message, type } });
+    setTimeout(() => dispatch({ type: 'REMOVE_TOAST', payload: id }), duration);
+  };
 
-function renderMessages(){
+  // Modal management
+  const openModal = (component, props = {}) => {
+    const id = Date.now().toString();
+    dispatch({ type: 'ADD_MODAL', payload: { id, component, props } });
+    return id;
+  };
 
-  const chat = getCurrentChat();
+  const closeModal = (id) => {
+    dispatch({ type: 'REMOVE_MODAL', payload: id });
+  };
 
-  if(!chat) return;
+  // Local storage persistence
+  const persistState = (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.error('LocalStorage error:', e);
+    }
+  };
 
-  chatContainer.innerHTML = '';
+  const loadPersistedState = (key) => {
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : null;
+    } catch (e) {
+      console.error('LocalStorage error:', e);
+      return null;
+    }
+  };
 
-  chat.messages.forEach((msg,index)=>{
-    appendMessage(msg,index);
-  });
-
-  scrollBottom(true);
-}
-
-function appendMessage(msg,index){
-
-  const wrap = document.createElement('div');
-
-  wrap.className =
-    'message flex ' +
-    (msg.role === 'user'
-      ? 'justify-end'
-      : 'justify-start');
-
-  const bubble = document.createElement('div');
-
-  bubble.className =
-    'glass border border-[var(--border)] rounded-3xl p-4 max-w-[90%] md:max-w-[75%]';
-
-  const html =
-    msg.role === 'assistant'
-      ? marked.parse(msg.content || '')
-      : `<div class="whitespace-pre-wrap">${escapeHtml(msg.content)}</div>`;
-
-  bubble.innerHTML = `
-    <div class="markdown prose prose-invert max-w-none">
-      ${html}
-    </div>
-
-    <div class="mt-3 flex gap-2 text-xs opacity-70">
-      <button data-copy="${index}">Copy</button>
-      <button data-delete="${index}">Delete</button>
-
-      ${msg.role === 'assistant'
-        ? `<button data-regenerate="${index}">Retry</button>`
-        : `<button data-edit="${index}">Edit</button>`
+  // Responsive design system
+  const styles = {
+    container: {
+      maxWidth: isDesktop ? '1200px' : isTablet ? '768px' : '100%',
+      margin: '0 auto',
+      padding: isMobile ? '8px' : '16px',
+      minHeight: '100vh',
+      backgroundColor: state.theme === 'dark' ? '#1a1a2e' : '#ffffff',
+      color: state.theme === 'dark' ? '#e0e0e0' : '#333333',
+      transition: 'all 0.3s ease'
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: isMobile ? '8px 0' : '16px 0',
+      borderBottom: `2px solid ${state.theme === 'dark' ? '#333' : '#ddd'}`,
+      marginBottom: '24px'
+    },
+    card: {
+      backgroundColor: state.theme === 'dark' ? '#16213e' : '#f5f5f5',
+      borderRadius: '8px',
+      padding: isMobile ? '12px' : '20px',
+      marginBottom: '16px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      transition: 'transform 0.2s ease',
+      cursor: 'pointer',
+      ':hover': {
+        transform: 'translateY(-2px)'
       }
-    </div>
-  `;
+    },
+    button: {
+      padding: isMobile ? '8px 16px' : '10px 20px',
+      borderRadius: '6px',
+      border: 'none',
+      cursor: 'pointer',
+      fontWeight: 500,
+      transition: 'all 0.2s ease',
+      fontSize: isMobile ? '14px' : '16px'
+    },
+    primaryButton: {
+      backgroundColor: '#0066cc',
+      color: '#ffffff',
+      ':hover': {
+        backgroundColor: '#0052a3'
+      }
+    },
+    input: {
+      width: '100%',
+      padding: isMobile ? '10px' : '12px',
+      borderRadius: '6px',
+      border: `1px solid ${state.theme === 'dark' ? '#444' : '#ccc'}`,
+      backgroundColor: state.theme === 'dark' ? '#1a1a2e' : '#ffffff',
+      color: state.theme === 'dark' ? '#e0e0e0' : '#333333',
+      fontSize: '16px',
+      marginBottom: '12px',
+      boxSizing: 'border-box',
+      transition: 'border-color 0.2s ease',
+      ':focus': {
+        borderColor: '#0066cc',
+        outline: 'none'
+      }
+    },
+    toast: {
+      position: 'fixed',
+      bottom: '20px',
+      right: '20px',
+      zIndex: 1000,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px'
+    },
+    toastItem: {
+      padding: '12px 20px',
+      borderRadius: '8px',
+      color: '#ffffff',
+      fontWeight: 500,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      animation: 'slideIn 0.3s ease'
+    },
+    modal: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1001,
+      padding: '20px'
+    },
+    modalContent: {
+      backgroundColor: state.theme === 'dark' ? '#1a1a2e' : '#ffffff',
+      borderRadius: '12px',
+      padding: isMobile ? '20px' : '30px',
+      maxWidth: '500px',
+      width: '100%',
+      maxHeight: '80vh',
+      overflowY: 'auto',
+      position: 'relative'
+    }
+  };
 
-  wrap.appendChild(bubble);
+  return (
+    <React.Fragment>
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        :focus { outline: 2px solid #0066cc; outline-offset: 2px; }
+      `}</style>
+      <div style={styles.container}>
+        <header style={styles.header}>
+          <h1 style={{ fontSize: isMobile ? '1.2rem' : '1.5rem' }}>
+            Universal Architecture
+          </h1>
+          <div>
+            <button
+              style={{ ...styles.button, marginRight: '8px' }}
+              onClick={() => dispatch({
+                type: 'SET_THEME',
+                payload: state.theme === 'dark' ? 'light' : 'dark'
+              })}
+            >
+              {state.theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+            <button
+              style={styles.button}
+              onClick={() => showToast('Architecture initialized!', 'success')}
+            >
+              Test Toast
+            </button>
+          </div>
+        </header>
 
-  chatContainer.appendChild(wrap);
+        <main>
+          {/* Sample Cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+            gap: '16px'
+          }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={styles.card}>
+                <h3>Card {i}</h3>
+                <p>Responsive card component with universal styling.</p>
+              </div>
+            ))}
+          </div>
 
-  bubble.querySelectorAll('pre').forEach(pre => {
+          {/* Sample Form */}
+          <div style={{ marginTop: '24px' }}>
+            <h2 style={{ marginBottom: '16px' }}>Universal Form</h2>
+            <input
+              style={styles.input}
+              placeholder="Type something..."
+              aria-label="Sample input"
+            />
+            <button
+              style={{ ...styles.button, ...styles.primaryButton }}
+              onClick={() => fetchData('/api/data')}
+              disabled={state.loading}
+            >
+              {state.loading ? 'Loading...' : 'Fetch Data'}
+            </button>
+            {state.error && (
+              <p style={{ color: '#ff4444', marginTop: '8px' }}>{state.error}</p>
+            )}
+          </div>
+        </main>
+      </div>
 
-    const btn = document.createElement('button');
+      {/* Toast Container */}
+      <div style={styles.toast} role="alert" aria-live="polite">
+        {state.toasts.map(toast => (
+          <div
+            key={toast.id}
+            style={{
+              ...styles.toastItem,
+              backgroundColor: toast.type === 'success' ? '#4caf50' :
+                            toast.type === 'error' ? '#f44336' : '#2196f3'
+            }}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
 
-    btn.className = 'copy-code';
-    btn.textContent = 'Copy';
-
-    btn.addEventListener('click',()=>{
-      navigator.clipboard.writeText(pre.innerText);
-      sho
+      {/* Modal Container */}
+      {state.modals.map(modal => (
+        <div
+          key={modal.id}
+          style={styles.modal}
+          onClick={() => closeModal(modal.id)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            style={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              style={{ float: 'right', border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem' }}
+              onClick={() => closeModal(modal.id)}
+            >
+              ✕
+            </button>
+            {modal.component}
+          </div>
+        </div>
+      ))}
+    </React.Fragment>
+  );
+}
